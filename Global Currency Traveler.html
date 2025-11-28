@@ -1,0 +1,1900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Global Currency Traveler</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --bg: #020617;
+      --card: #020617;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.18);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --danger: #f97373;
+      --success: #4ade80;
+      --border: #1f2937;
+      --yellow: #facc15;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #020617;
+      color: var(--text);
+    }
+
+    body {
+      background: radial-gradient(circle at top, #020617 0, #020617 45%, #000 100%);
+    }
+
+    #game {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      padding: 0;
+    }
+
+    /* MAP */
+
+    #map-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: #020617;
+    }
+
+    #map-container {
+      position: absolute;
+      inset: 0;
+      background-color: #020617;
+      overflow: hidden;
+    }
+
+    #world-map {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;     /* keeps equirectangular aspect ratio */
+      display: block;
+      filter: brightness(0.8) contrast(1.05);
+    }
+
+    /* HUD (top-right) */
+
+    #hud {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      min-width: 260px;
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.95));
+      border-radius: 14px;
+      border: 1px solid rgba(30, 64, 175, 0.8);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.9);
+      font-size: 0.8rem;
+      z-index: 5;
+    }
+
+    #hud-main {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px 8px;
+    }
+
+    .hud-label {
+      color: var(--muted);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .hud-value {
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    #hud-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    #time-step-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    #time-step-input {
+      width: 64px;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      background: #020617;
+      color: var(--text);
+      font-size: 0.75rem;
+    }
+
+    /* NEWS (top-left) */
+
+    #news-toggle {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 5;
+    }
+
+    #btn-toggle-news {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.96);
+      color: var(--text);
+      font-size: 0.78rem;
+      padding: 5px 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.9);
+    }
+
+    #btn-toggle-news span.icon {
+      font-size: 1rem;
+    }
+
+    #news-panel {
+      position: absolute;
+      top: 44px;
+      left: 12px;
+      width: min(420px, 85vw);
+      max-height: 70vh;
+      background: rgba(15, 23, 42, 0.98);
+      border-radius: 14px;
+      border: 1px solid rgba(30, 64, 175, 0.8);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.95);
+      padding: 6px 9px 9px;
+      font-size: 0.8rem;
+      display: none;
+      z-index: 4;
+    }
+
+    #news-panel.open {
+      display: block;
+    }
+
+    #news-panel h3 {
+      margin: 0 0 6px 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #event-feed {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .event-line {
+      border-radius: 10px;
+      padding: 5px 7px;
+      margin-bottom: 4px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(51, 65, 85, 0.7);
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+
+    .event-tag {
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--muted);
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .event-text {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: pre-line;
+    }
+
+    .event-good {
+      border-color: rgba(74, 222, 128, 0.7);
+    }
+
+    .event-bad {
+      border-color: rgba(248, 113, 113, 0.7);
+    }
+
+    /* COUNTRY MARKERS (dots at capitals) */
+
+    .country-marker {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 2px solid rgba(148, 163, 184, 0.9);
+      background: radial-gradient(circle at 30% 30%, #38bdf8, #0f172a);
+      box-shadow: 0 0 8px rgba(15, 23, 42, 0.9);
+      cursor: pointer;
+      transform: translate(-50%, -50%) scale(1);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      pointer-events: auto;
+    }
+
+    .country-marker::after {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border-radius: 999px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+    }
+
+    .country-marker:hover {
+      transform: translate(-50%, -50%) scale(1.25);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.9);
+      border-color: rgba(56, 189, 248, 0.95);
+    }
+
+    .country-marker.visited {
+      box-shadow: 0 0 10px rgba(74, 222, 128, 0.9);
+    }
+
+    .country-marker.active {
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.9);
+      border-color: rgba(250, 204, 21, 0.95);
+    }
+
+    /* TOOLTIP */
+
+    #map-tooltip {
+      position: absolute;
+      pointer-events: none;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      color: var(--text);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.95);
+      max-width: 260px;
+      display: none;
+      z-index: 6;
+    }
+
+    #map-tooltip-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    #map-tooltip-body {
+      color: var(--muted);
+      line-height: 1.25;
+    }
+
+    /* COUNTRY OVERLAY */
+
+    #country-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.98));
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+      z-index: 50;
+    }
+
+    #country-overlay.active {
+      display: flex;
+    }
+
+    #country-panel {
+      width: 100%;
+      max-width: 1040px;
+      max-height: 96vh;
+      background: #020617;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.85);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #country-panel-header {
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.95);
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(30, 64, 175, 0.9));
+    }
+
+    #country-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #country-flag {
+      width: 44px;
+      height: 28px;
+      border-radius: 5px;
+      border: 1px solid rgba(15, 23, 42, 0.7);
+      object-fit: cover;
+      background: #020617;
+    }
+
+    #country-title {
+      font-size: 1.02rem;
+      font-weight: 600;
+    }
+
+    #country-subtitle {
+      font-size: 0.8rem;
+      color: rgba(226, 232, 240, 0.9);
+    }
+
+    #country-panel-body {
+      padding: 8px 12px 10px;
+      display: grid;
+      grid-template-columns: 1.2fr 1.4fr;
+      gap: 12px;
+      overflow-y: auto;
+      font-size: 0.86rem;
+    }
+
+    @media (max-width: 900px) {
+      #country-panel-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .section-title {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    #country-overview,
+    #country-drivers,
+    #country-scenario,
+    #chart-card {
+      background: rgba(15, 23, 42, 0.97);
+      border-radius: 12px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      padding: 8px 9px;
+      line-height: 1.35;
+    }
+
+    #country-overview p {
+      margin: 0 0 4px 0;
+      color: var(--muted);
+    }
+
+    #country-global-role {
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
+    #country-drivers ul {
+      margin: 2px 0 0 14px;
+      padding: 0;
+      color: var(--muted);
+      font-size: 0.84rem;
+    }
+
+    #rate-box {
+      background: rgba(8, 47, 73, 0.8);
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.7);
+      padding: 7px 9px;
+      font-size: 0.84rem;
+      margin-bottom: 6px;
+    }
+
+    #rate-line {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    #rate-change {
+      font-size: 0.8rem;
+    }
+
+    #rate-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    #wallet-breakdown {
+      font-size: 0.8rem;
+      margin-top: 4px;
+      color: var(--muted);
+    }
+
+    #country-scenario-title {
+      font-size: 0.86rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 2px;
+    }
+
+    #country-scenario-body {
+      font-size: 0.84rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    #country-scenario-extra {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      white-space: pre-line;
+    }
+
+    #country-scenario-tip {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    #learning-questions {
+      margin: 4px 0 0 16px;
+      padding: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    #learning-questions li {
+      margin-bottom: 3px;
+    }
+
+    /* CHART */
+
+    #chart-container {
+      width: 100%;
+    }
+
+    #history-chart {
+      width: 100%;
+      height: 130px;
+      border-radius: 8px;
+      background: radial-gradient(circle at top, #020617, #020617);
+      border: 1px solid rgba(17, 24, 39, 0.9);
+    }
+
+    #chart-caption {
+      margin-top: 3px;
+      font-size: 0.76rem;
+      color: var(--muted);
+    }
+
+    /* FOOTER */
+
+    #country-panel-footer {
+      padding: 7px 12px 9px;
+      border-top: 1px solid rgba(15, 23, 42, 0.95);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.98);
+      font-size: 0.78rem;
+    }
+
+    #footer-left,
+    #footer-right {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    #invest-label {
+      font-size: 0.76rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    #invest-amount-input {
+      width: 80px;
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      background: #020617;
+      color: var(--text);
+      font-size: 0.76rem;
+    }
+
+    #wait-counter {
+      color: var(--muted);
+    }
+
+    /* BUTTONS */
+
+    button {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.96);
+      color: var(--text);
+      font-size: 0.8rem;
+      padding: 6px 11px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    button span.icon {
+      font-size: 1rem;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #38bdf8, #6366f1);
+      border-color: rgba(191, 219, 254, 0.85);
+      color: white;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      border-style: dashed;
+    }
+
+    button.danger {
+      border-color: rgba(248, 113, 113, 0.8);
+      color: var(--danger);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-0.5px);
+      box-shadow: 0 10px 22px rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #0ea5e9, #4f46e5);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    /* RESULTS MODAL */
+
+    #results-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.92);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 60;
+      padding: 16px;
+    }
+
+    #results-modal {
+      background: radial-gradient(circle at top, #0b1120 0, #020617 70%);
+      border-radius: 18px;
+      max-width: 520px;
+      width: 100%;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      padding: 14px 16px;
+      box-shadow: 0 25px 60px rgba(15, 23, 42, 0.98);
+      font-size: 0.88rem;
+    }
+
+    #results-modal h2 {
+      margin: 0 0 4px 0;
+      font-size: 1.05rem;
+    }
+
+    #results-grade {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    #results-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1.2fr;
+      gap: 10px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 600px) {
+      #results-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .results-card {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 8px 10px;
+    }
+
+    .results-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+
+    .results-value {
+      font-size: 0.9rem;
+    }
+
+    #results-list {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 4px;
+      padding-left: 15px;
+    }
+  </style>
+</head>
+<body>
+<div id="game">
+  <header>
+    <h1>GLOBAL CURRENCY TRAVELER</h1>
+  </header>
+
+  <main>
+    <section id="map-wrapper">
+      <div id="map-container">
+        <!-- World map image (equirectangular) -->
+        <img
+          id="world-map"
+          src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/2000px-World_map_-_low_resolution.svg.png"
+          alt="World map"
+        />
+
+        <!-- HUD -->
+        <div id="hud">
+          <div id="hud-main">
+            <div>
+              <div class="hud-label">Day</div>
+              <div class="hud-value" id="hud-day">0</div>
+            </div>
+            <div>
+              <div class="hud-label">Wealth</div>
+              <div class="hud-value" id="hud-wealth">$2,000.00</div>
+            </div>
+            <div>
+              <div class="hud-label">P / L</div>
+              <div class="hud-value" id="hud-pl">$0.00</div>
+            </div>
+          </div>
+          <div id="hud-controls">
+            <label id="time-step-label">
+              Step (days)
+              <input id="time-step-input" type="number" min="1" max="365" value="30" />
+            </label>
+            <button id="btn-advance-time-map">
+              <span class="icon"⏱️</span>
+              Advance time
+            </button>
+            <button id="btn-end-trip-hud" class="danger">
+              <span class="icon">🏁</span>
+              End Trip
+            </button>
+          </div>
+        </div>
+
+        <!-- News -->
+        <div id="news-toggle">
+          <button id="btn-toggle-news">
+            <span class="icon">📰</span>
+            News
+          </button>
+        </div>
+        <div id="news-panel">
+          <h3><span>📰</span> What’s moving currencies?</h3>
+          <div id="event-feed"></div>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="map-tooltip">
+          <div id="map-tooltip-title"></div>
+          <div id="map-tooltip-body"></div>
+        </div>
+        <!-- Markers inserted by JS -->
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- COUNTRY OVERLAY -->
+<div id="country-overlay">
+  <div id="country-panel">
+    <div id="country-panel-header">
+      <div id="country-header-left">
+        <img id="country-flag" src="" alt="Flag" />
+        <div>
+          <div id="country-title">Country — Currency</div>
+          <div id="country-subtitle">Region • Snapshot</div>
+        </div>
+      </div>
+      <button id="btn-close-country" class="secondary">
+        <span class="icon">⬅️</span>
+        Back to map
+      </button>
+    </div>
+
+    <div id="country-panel-body">
+      <div>
+        <div class="section-title">Why this currency matters</div>
+        <div id="country-overview">
+          <p></p>
+          <div id="country-global-role"></div>
+        </div>
+
+        <div class="section-title" style="margin-top:6px;">Key drivers of this currency</div>
+        <div id="country-drivers"></div>
+      </div>
+
+      <div>
+        <div id="rate-box">
+          <div id="rate-line">1 CAD = —</div>
+          <div id="rate-change">Recent move: —</div>
+          <div id="rate-meta">Lower number = stronger local currency vs CAD. Higher number = weaker local currency vs CAD.</div>
+          <div id="wallet-breakdown"></div>
+        </div>
+
+        <div class="section-title" style="margin-top:6px;">Scenario: what’s happening right now?</div>
+        <div id="country-scenario">
+          <div id="country-scenario-title">—</div>
+          <div id="country-scenario-body">—</div>
+          <div id="country-scenario-extra">—</div>
+          <div id="country-scenario-tip">—</div>
+        </div>
+
+        <div class="section-title" style="margin-top:6px;">Think like an economist</div>
+        <ul id="learning-questions"></ul>
+
+        <div class="section-title" style="margin-top:6px;">Your wealth over time</div>
+        <div id="chart-card">
+          <div id="chart-container">
+            <svg id="history-chart" viewBox="0 0 100 40" preserveAspectRatio="none"></svg>
+          </div>
+          <div id="chart-caption">
+            Line shows your portfolio value (in CAD) as you invest in different currencies and time passes.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="country-panel-footer">
+      <div id="footer-left">
+        <label id="invest-label">
+          Invest (CAD)
+          <input id="invest-amount-input" type="number" min="0" step="10" />
+        </label>
+        <button id="btn-exchange" class="primary">
+          <span class="icon">💱</span>
+          Invest into this currency
+        </button>
+        <button id="btn-wait" class="secondary">
+          <span class="icon">⏳</span>
+          Wait (advance time)
+        </button>
+      </div>
+      <div id="footer-right">
+        <span id="wait-counter">Skips in this country: 0 / 3 before cooldown</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS MODAL -->
+<div id="results-modal-backdrop">
+  <div id="results-modal">
+    <h2>Trip Results</h2>
+    <div id="results-grade">Overall performance: —</div>
+
+    <div id="results-grid">
+      <div class="results-card">
+        <div class="results-label">Final Wealth (in CAD)</div>
+        <div class="results-value" id="results-wealth"></div>
+
+        <div class="results-label" style="margin-top:6px;">Profit / Loss vs. Start</div>
+        <div class="results-value" id="results-pnl"></div>
+      </div>
+
+      <div class="results-card">
+        <div class="results-label">Learning Progress</div>
+        <div class="results-value" id="results-learning"></div>
+        <ul id="results-list"></ul>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;display:flex;justify-content:flex-end;gap:6px;">
+      <button id="btn-close-results" class="secondary">
+        <span class="icon">🔁</span>
+        Keep exploring
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STARTING_CAD = 2000;
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+    const countries = [
+    {
+      id: "mexico",
+      name: "Mexico",
+      iso2: "mx",
+      region: "North America",
+      currencyName: "Mexican Peso",
+      currencyCode: "MXN",
+      baseRate: 13.0,
+      volatility: 0.035,
+      hoverSummary:
+        "Capital: Mexico City. Mexico’s economy is tightly linked to the US and Canada through USMCA, with most exports going to the US. Manufacturing (autos, electronics) and tourism are major sources of foreign currency.",
+      globalRole:
+        "Medium regional influence: the peso is actively traded and important in North American trade, but it is not a major global reserve currency like USD or EUR.",
+      drivers: [
+        "Trade with the US and Canada, especially autos, auto parts and electronics.",
+        "Tourism inflows as visitors bring USD, CAD and EUR to spend in Mexico.",
+        "Interest rate differences between Mexico and the US, affecting capital flows.",
+        "Perceptions of political, security and policy stability."
+      ],
+      scenarios: [
+        {
+          title: "Manufacturing boom under USMCA",
+          issue:
+            "More factories shift to Mexico as companies ‘nearshore’ production to be closer to US consumers.",
+          effect:
+            "Export volumes and foreign direct investment rise. Demand for pesos increases as firms pay wages and suppliers in MXN.",
+          who:
+            "Export manufacturers, workers paid in pesos, and foreign investors holding Mexican assets benefit from a stronger MXN.",
+          tip:
+            "More exports usually support a stronger currency because foreigners need to buy it to pay for goods and wages."
+        },
+        {
+          title: "US slowdown hits exports",
+          issue:
+            "The US economy slows, reducing demand for Mexican car parts and electronics.",
+          effect:
+            "Exporters earn fewer dollars to convert into pesos. Investors may sell MXN and move into USD as risk rises.",
+          who:
+            "Factory workers, exporters, and peso-denominated bond holders are hurt if the peso weakens and prices rise.",
+          tip:
+            "When your main trading partner slows, your exports and currency often weaken together."
+        }
+      ],
+      questions: [
+        "How would new USMCA-style trade deals change demand for MXN?",
+        "If US interest rates rise faster than Mexico’s, what happens to peso demand?",
+        "Why might tourists care about the peso’s value when planning trips?"
+      ]
+    },
+    {
+      id: "argentina",
+      name: "Argentina",
+      iso2: "ar",
+      region: "South America",
+      currencyName: "Argentine Peso",
+      currencyCode: "ARS",
+      baseRate: 950.0,
+      volatility: 0.08,
+      hoverSummary:
+        "Capital: Buenos Aires. Argentina has a long history of high inflation and financial crises. Many people save in US dollars instead of pesos because they do not trust the local currency.",
+      globalRole:
+        "Low global influence: the peso is rarely used outside Argentina and is not a reserve currency due to chronic inflation and past capital controls.",
+      drivers: [
+        "Domestic inflation and how far the government relies on money creation to finance deficits.",
+        "Agricultural exports (soy, corn, beef) and global commodity prices.",
+        "IMF programs and debt negotiations that affect investor confidence.",
+        "Capital controls that restrict access to foreign currencies and create gaps between official and street rates."
+      ],
+      scenarios: [
+        {
+          title: "Inflation spike and capital controls",
+          issue:
+            "The government finances its deficit by printing money. Inflation accelerates and the official exchange rate lags behind reality.",
+          effect:
+            "People rush to convert pesos into USD on informal markets. The ‘real’ ARS weakens much faster than the official rate.",
+          who:
+            "Households on fixed peso incomes lose purchasing power. Importers struggle to find dollars; savers flee into USD or goods.",
+          tip:
+            "High inflation erodes trust in a currency and often creates multiple exchange rates (official vs. street)."
+        },
+        {
+          title: "New IMF deal and reform promises",
+          issue:
+            "Argentina signs a new IMF program, promising spending cuts and tighter monetary policy.",
+          effect:
+            "Confidence improves somewhat; some investors believe inflation will eventually fall, slowing the peso’s collapse.",
+          who:
+            "Government gains breathing room; exporters and bond holders may see temporary stability, but reforms can be politically painful.",
+          tip:
+            "International support can temporarily calm a weak currency if people believe reforms are credible."
+        }
+      ],
+      questions: [
+        "Why do people lose trust in a currency when inflation is very high?",
+        "How do capital controls change the real exchange rate people experience?",
+        "If you were a farmer in Argentina, which currency would you want to save in and why?"
+      ]
+    },
+    {
+      id: "indonesia",
+      name: "Indonesia",
+      iso2: "id",
+      region: "Asia-Pacific",
+      currencyName: "Indonesian Rupiah",
+      currencyCode: "IDR",
+      baseRate: 11800.0,
+      volatility: 0.04,
+      hoverSummary:
+        "Capital: Jakarta. Indonesia is the largest economy in Southeast Asia and a G20 member. It exports coal, palm oil, nickel and gas, plus manufactured goods, so the rupiah is sensitive to commodity prices and investor flows.",
+      globalRole:
+        "Medium emerging-market influence: an important Asian and commodity exporter, but the rupiah is not widely used as a reserve currency.",
+      drivers: [
+        "Prices and export volumes for coal, palm oil, nickel and other key commodities.",
+        "Foreign portfolio investment into Indonesian bonds and stocks.",
+        "Domestic inflation and Bank Indonesia’s interest-rate policy.",
+        "Political stability and infrastructure development that affect long-term growth."
+      ],
+      scenarios: [
+        {
+          title: "Commodity boom",
+          issue:
+            "Global prices for metals and palm oil rise sharply.",
+          effect:
+            "Indonesia earns more export revenue in USD, which is partly converted into rupiah to pay wages and taxes.",
+          who:
+            "Mining and plantation firms, workers and the government budget benefit. Import-dependent households may still face higher prices.",
+          tip:
+            "When a commodity exporter earns more, its currency can strengthen as export dollars flow into the local economy."
+        },
+        {
+          title: "Capital outflows to the US",
+          issue:
+            "US interest rates rise, and global investors move money from emerging markets back into US bonds.",
+          effect:
+            "Some investors sell Indonesian assets and rupiah, pushing IDR weaker until yields become attractive again.",
+          who:
+            "Indonesian borrowers in foreign currency face higher costs; importers pay more in rupiah for the same USD goods.",
+          tip:
+            "If foreign investors leave, the local currency can fall quickly as they sell it to get USD back."
+        }
+      ],
+      questions: [
+        "How do higher commodity prices change Indonesia’s trade balance?",
+        "Why might investors leave Indonesia when US interest rates rise?",
+        "Is a strong rupiah always good for exports? Why or why not?"
+      ]
+    },
+    {
+      id: "new-zealand",
+      name: "New Zealand",
+      iso2: "nz",
+      region: "Oceania",
+      currencyName: "New Zealand Dollar",
+      currencyCode: "NZD",
+      baseRate: 1.2,
+      volatility: 0.025,
+      hoverSummary:
+        "Capital: Wellington. New Zealand is a high-income, export-driven economy. Dairy, meat, forestry, fruit, wine and tourism are key sources of foreign currency, so NZD reacts to commodity prices and global travel.",
+      globalRole:
+        "Moderate influence: NZD is actively traded and sometimes used in carry trades, but it is not a major global reserve currency.",
+      drivers: [
+        "Global demand and prices for dairy, meat and other agricultural exports.",
+        "Interest-rate decisions by the Reserve Bank of New Zealand compared with other advanced economies.",
+        "Tourism inflows and global travel conditions.",
+        "Perception of New Zealand as a stable, well-governed economy."
+      ],
+      scenarios: [
+        {
+          title: "Central bank hikes rates",
+          issue:
+            "The Reserve Bank of New Zealand raises interest rates to cool inflation.",
+          effect:
+            "Higher yields on NZD-denominated bonds attract foreign investors, increasing demand for NZD.",
+          who:
+            "Foreign investors earn more interest; local borrowers pay higher mortgage and loan rates.",
+          tip:
+            "Higher interest rates can support a stronger currency if investors want the extra return."
+        },
+        {
+          title: "Tourism shock",
+          issue:
+            "A global downturn or travel restrictions reduce international tourism to New Zealand.",
+          effect:
+            "Fewer visitors bring foreign currency to exchange into NZD. Service exports fall, putting mild pressure on NZD.",
+          who:
+            "Hotels, hospitality workers and tourism regions feel the impact; importers pay more if NZD weakens.",
+          tip:
+            "Less tourism hurts one of New Zealand’s key sources of foreign currency inflows."
+        }
+      ],
+      questions: [
+        "How does a higher interest rate make NZD more attractive?",
+        "Why would a global travel ban hurt the NZD?",
+        "Is NZD more or less risky than currencies from high-inflation countries? Why?"
+      ]
+    },
+    {
+      id: "south-africa",
+      name: "South Africa",
+      iso2: "za",
+      region: "Africa",
+      currencyName: "South African Rand",
+      currencyCode: "ZAR",
+      baseRate: 14.0,
+      volatility: 0.05,
+      hoverSummary:
+        "Capital on map: Cape Town (legislative capital). South Africa has three capitals – Pretoria (executive), Cape Town (legislative) and Bloemfontein (judicial). It is a BRICS member and major exporter of platinum, gold and other minerals.",
+      globalRole:
+        "Medium influence among emerging markets: the rand is actively traded and important for metals trade, but volatility and structural problems limit its reserve-currency role.",
+      drivers: [
+        "Mining exports of platinum-group metals, gold and other minerals.",
+        "Electricity shortages and infrastructure issues that affect production and growth.",
+        "Political stability, governance and structural reforms.",
+        "Global risk appetite for emerging markets and flows into South African assets."
+      ],
+      scenarios: [
+        {
+          title: "Power cuts and production losses",
+          issue:
+            "Electricity shortages disrupt mines and factories, cutting output and exports.",
+          effect:
+            "Lower export volumes reduce foreign currency earnings; investors see more risk and sell rand assets.",
+          who:
+            "Mining companies, workers and import-dependent households are affected by weaker growth and higher prices.",
+          tip:
+            "Unreliable infrastructure increases risk and weakens investor confidence in a currency."
+        },
+        {
+          title: "Metal price rally",
+          issue:
+            "Global prices for platinum-group metals and gold surge.",
+          effect:
+            "South Africa earns more from mineral exports; extra foreign-currency inflows can support a stronger rand.",
+          who:
+            "Mining firms, government tax revenues and workers benefit. Importers enjoy cheaper foreign goods if ZAR strengthens.",
+          tip:
+            "When key exports become more valuable, the currency can strengthen if earnings stay in the country."
+        }
+      ],
+      questions: [
+        "How do power cuts in South Africa show up in the rand’s value?",
+        "Why do global metal prices matter so much for ZAR?",
+        "If you were a foreign investor, what risks would you worry about before buying South African assets?"
+      ]
+    },
+    {
+      id: "russia",
+      name: "Russia",
+      iso2: "ru",
+      region: "Eurasia",
+      currencyName: "Russian Ruble",
+      currencyCode: "RUB",
+      baseRate: 60.0,
+      volatility: 0.07,
+      hoverSummary:
+        "Capital: Moscow. Russia is a major exporter of oil and gas. Since the invasion of Ukraine, sanctions and capital controls have reduced the ruble’s convertibility and increased its dependence on non-Western partners.",
+      globalRole:
+        "Constrained commodity-exporter currency: energy exports still matter globally, but sanctions and restrictions limit the ruble’s use as a reserve or invoicing currency.",
+      drivers: [
+        "Global oil and gas prices and the volume of Russian energy exports.",
+        "Sanctions on Russian banks, energy companies and shipping.",
+        "Use of alternative currencies (such as yuan) and local currencies in trade.",
+        "Domestic inflation, interest-rate policy and capital controls."
+      ],
+      scenarios: [
+        {
+          title: "Oil price jump",
+          issue:
+            "Global oil prices climb sharply, raising Russia’s export revenues.",
+          effect:
+            "In theory, stronger export earnings support the ruble, but sanctions and capital controls may limit how much foreign currency flows back.",
+          who:
+            "Energy companies and the government budget gain; households may or may not benefit depending on inflation and import prices.",
+          tip:
+            "For an energy exporter, higher oil prices can support the currency, but sanctions can block that effect."
+        },
+        {
+          title: "Sanctions tighten",
+          issue:
+            "New sanctions restrict Russian access to foreign banks and payment systems.",
+          effect:
+            "It becomes harder to trade in USD/EUR; some trade moves into yuan or local currencies, and ruble liquidity falls.",
+          who:
+            "Importers and households face shortages and higher prices; exporters must accept alternative currencies or discounts.",
+          tip:
+            "Sanctions often reduce confidence and liquidity in a currency and make it harder to use globally."
+        }
+      ],
+      questions: [
+        "Why do sanctions lower the ruble’s global influence?",
+        "How could trading more in yuan instead of dollars change Russia’s currency risk?",
+        "If oil prices fell sharply, what would you expect to happen to the ruble?"
+      ]
+    },
+    {
+      id: "iran",
+      name: "Iran",
+      iso2: "ir",
+      region: "Middle East",
+      currencyName: "Iranian Rial",
+      currencyCode: "IRR",
+      baseRate: 31000.0,
+      volatility: 0.09,
+      hoverSummary:
+        "Capital: Tehran. Iran is an oil exporter under long-term sanctions. Restrictions on banking and oil sales, high inflation and multiple exchange rates have made the rial very weak and unstable.",
+      globalRole:
+        "Very low global influence: sanctions and high inflation make the rial hard to use in trade or hold as a store of value, so most external deals use foreign currencies instead.",
+      drivers: [
+        "Oil export volumes and which countries are willing and able to buy Iranian oil under sanctions.",
+        "Sanctions that restrict banking links and access to hard currencies such as USD and EUR.",
+        "Domestic inflation, money-supply growth and fuel subsidy policies.",
+        "Multiple exchange rates (official vs. market) and an active street market for foreign currency."
+      ],
+      scenarios: [
+        {
+          title: "Sanctions relief rumors",
+          issue:
+            "Negotiations hint at a possible deal that could ease sanctions and allow Iran to sell more oil legally.",
+          effect:
+            "Expectations alone can strengthen the rial slightly as people imagine more export dollars entering the system.",
+          who:
+            "Businesses that depend on imports, the government budget and ordinary households all benefit if the rial stabilizes.",
+          tip:
+            "Sometimes expectations about future policy (not just actual changes) move exchange rates."
+        },
+        {
+          title: "Inflation and shortages",
+          issue:
+            "Imports become harder and more expensive; domestic prices surge as the rial loses value.",
+          effect:
+            "People try to buy USD, gold or goods as a store of value when they can. The street exchange rate weakens even more.",
+          who:
+            "Households on fixed incomes, small businesses and anyone paid in rials are hit hardest by rising prices.",
+          tip:
+            "When citizens don’t trust their own currency, ‘dollarization’ and informal markets grow."
+        }
+      ],
+      questions: [
+        "What problems do multiple exchange rates (official vs street) create for businesses?",
+        "How do sanctions reduce the rial’s ability to act as a global currency?",
+        "Why might ordinary people prefer to hold gold or USD instead of rials?"
+      ]
+    }
+  ];
+
+
+  /* Capital coordinates */
+  const capitalGeo = {
+    mexico:       { lat: 11,  lon: -82 },  // Mexico City
+    argentina:    { lat: -40, lon: -48 }, // Buenos Aires
+    indonesia:    { lat: -15,  lon: 78 }, // Jakarta
+    "new-zealand":{ lat: -57, lon: 119 }, // Wellington
+    "south-africa":{lat:-38,  lon: 9 },  // Cape Town
+    russia:       { lat: 45,  lon: 18 },  // Moscow
+    iran:         { lat: 25,  lon: 30 }   // Tehran
+  };
+
+  /* FX state */
+  const rates = {};
+  const lastDeltaPct = {};
+  countries.forEach(c => {
+    rates[c.id] = c.baseRate;
+    lastDeltaPct[c.id] = 0;
+  });
+
+  /* Portfolio */
+  let holdingsCad = STARTING_CAD;
+  const holdingsLocal = {};
+  countries.forEach(c => (holdingsLocal[c.id] = 0));
+
+  let daysTraveled = 0;
+  let currentCountryId = null;
+  const visitedIds = new Set();
+  const history = [{ day: 0, value: STARTING_CAD }];
+
+  /* Wait/skip control */
+  let waitCombo = 0;
+  let currentWaitCountryId = null;
+  let waitCooldownUntil = null;
+  let waitCooldownTimerId = null;
+
+  /* News schedule */
+  let nextNewsDay = randomInt(3, 5);
+
+  /* DOM refs */
+  const elMapContainer = document.getElementById("map-container");
+  const elWorldMap = document.getElementById("world-map");
+  const elMapTooltip = document.getElementById("map-tooltip");
+  const elMapTooltipTitle = document.getElementById("map-tooltip-title");
+  const elMapTooltipBody = document.getElementById("map-tooltip-body");
+
+  const elHudDay = document.getElementById("hud-day");
+  const elHudWealth = document.getElementById("hud-wealth");
+  const elHudPL = document.getElementById("hud-pl");
+  const elTimeStepInput = document.getElementById("time-step-input");
+  const elBtnAdvanceTimeMap = document.getElementById("btn-advance-time-map");
+  const elBtnEndTripHud = document.getElementById("btn-end-trip-hud");
+
+  const elBtnToggleNews = document.getElementById("btn-toggle-news");
+  const elNewsPanel = document.getElementById("news-panel");
+  const elEventFeed = document.getElementById("event-feed");
+
+  const elCountryOverlay = document.getElementById("country-overlay");
+  const elCountryFlag = document.getElementById("country-flag");
+  const elCountryTitle = document.getElementById("country-title");
+  const elCountrySubtitle = document.getElementById("country-subtitle");
+  const elCountryOverview = document.getElementById("country-overview");
+  const elCountryGlobalRole = document.getElementById("country-global-role");
+  const elCountryDrivers = document.getElementById("country-drivers");
+  const elRateLine = document.getElementById("rate-line");
+  const elRateChange = document.getElementById("rate-change");
+  const elRateMeta = document.getElementById("rate-meta");
+  const elWalletBreakdown = document.getElementById("wallet-breakdown");
+  const elCountryScenarioTitle = document.getElementById("country-scenario-title");
+  const elCountryScenarioBody = document.getElementById("country-scenario-body");
+  const elCountryScenarioExtra = document.getElementById("country-scenario-extra");
+  const elCountryScenarioTip = document.getElementById("country-scenario-tip");
+  const elLearningQuestions = document.getElementById("learning-questions");
+  const elWaitCounter = document.getElementById("wait-counter");
+  const elHistoryChart = document.getElementById("history-chart");
+  const elInvestAmount = document.getElementById("invest-amount-input");
+
+  const elBtnExchange = document.getElementById("btn-exchange");
+  const elBtnWait = document.getElementById("btn-wait");
+  const elBtnCloseCountry = document.getElementById("btn-close-country");
+
+  const elResultsBackdrop = document.getElementById("results-modal-backdrop");
+  const elResultsWealth = document.getElementById("results-wealth");
+  const elResultsPnL = document.getElementById("results-pnl");
+  const elResultsLearning = document.getElementById("results-learning");
+  const elResultsGrade = document.getElementById("results-grade");
+  const elResultsList = document.getElementById("results-list");
+  const elBtnCloseResults = document.getElementById("btn-close-results");
+
+  function fmtMoney(amount) {
+    const sign = amount < 0 ? "-" : "";
+    const abs = Math.abs(amount);
+    return sign + "$" + abs.toFixed(2);
+  }
+
+  function fmtPct(p) {
+    const sign = p > 0 ? "+" : "";
+    return sign + (p * 100).toFixed(1) + "%";
+  }
+
+  function getCountryById(id) {
+    return countries.find(c => c.id === id);
+  }
+
+  function getCurrentCountry() {
+    if (!currentCountryId) return null;
+    return getCountryById(currentCountryId);
+  }
+
+  function getPortfolioValueCad() {
+    let total = holdingsCad;
+    countries.forEach(c => {
+      const amtLocal = holdingsLocal[c.id];
+      if (amtLocal !== 0) {
+        total += amtLocal / rates[c.id];
+      }
+    });
+    return total;
+  }
+
+  function pushHistorySnapshot() {
+    const value = getPortfolioValueCad();
+    history.push({ day: daysTraveled, value });
+  }
+
+  function updateHUD() {
+    const wealth = getPortfolioValueCad();
+    const diff = wealth - STARTING_CAD;
+    elHudDay.textContent = daysTraveled.toString();
+    elHudWealth.textContent = fmtMoney(wealth);
+    elHudPL.textContent = fmtMoney(diff);
+    elHudPL.style.color = diff >= 0 ? "var(--success)" : "var(--danger)";
+  }
+
+  function logEvent(text, mood = "neutral", label = "Event") {
+    const line = document.createElement("div");
+    line.className = "event-line";
+    if (mood === "good") line.classList.add("event-good");
+    if (mood === "bad") line.classList.add("event-bad");
+
+    const tag = document.createElement("div");
+    tag.className = "event-tag";
+    tag.textContent = label;
+
+    const span = document.createElement("div");
+    span.className = "event-text";
+    span.textContent = text;
+
+    line.appendChild(tag);
+    line.appendChild(span);
+    elEventFeed.appendChild(line);
+    elEventFeed.scrollTop = elEventFeed.scrollHeight;
+  }
+
+  function updateRates(stepDays, targetCountryId = null) {
+    const baseDays = 30;
+    const stepFactor = Math.max(0.1, stepDays / baseDays);
+
+    countries.forEach(c => {
+      const oldRate = rates[c.id];
+      let shock = (Math.random() * 2 - 1) * c.volatility * Math.sqrt(stepFactor);
+      const reversionStrength = 0.15 * stepFactor;
+      const towardBase = (c.baseRate - oldRate) / oldRate * reversionStrength;
+
+      if (targetCountryId && c.id === targetCountryId) shock *= 1.3;
+
+      let newRate = oldRate * (1 + shock + towardBase);
+      newRate = Math.max(c.baseRate * 0.4, Math.min(c.baseRate * 2.5, newRate));
+
+      rates[c.id] = newRate;
+      lastDeltaPct[c.id] = (newRate - oldRate) / oldRate;
+    });
+  }
+
+  function triggerNews(preferredCountryId = null, scenarioOverride = null) {
+    const c = preferredCountryId
+      ? getCountryById(preferredCountryId)
+      : countries[Math.floor(Math.random() * countries.length)];
+
+    const s = scenarioOverride || c.scenarios[Math.floor(Math.random() * c.scenarios.length)];
+
+    const positiveWords = /boom|rally|relief|jump|deal|reform|hike/i;
+    const directionUp = !!s.title.match(positiveWords);
+    const mood = directionUp ? "good" : "bad";
+
+    const text =
+`Country: ${c.name} (${c.currencyCode})
+Issue: ${s.issue}
+Likely effect on currency: ${s.effect}
+Who is most affected: ${s.who}`;
+
+    logEvent(text, mood, c.currencyCode);
+  }
+
+  function advanceTime(stepDays, focusCountryId = null) {
+    stepDays = Math.max(0, stepDays | 0);
+    if (!stepDays) return;
+
+    daysTraveled += stepDays;
+    updateRates(stepDays, focusCountryId);
+
+    while (daysTraveled >= nextNewsDay) {
+      triggerNews();
+      nextNewsDay += randomInt(3, 7);
+    }
+
+    pushHistorySnapshot();
+    updateHUD();
+    renderHistoryChart();
+    if (currentCountryId) refreshCurrentCountryView();
+  }
+
+  function renderHistoryChart() {
+    const data = history;
+    if (data.length < 2) {
+      elHistoryChart.innerHTML = "";
+      return;
+    }
+
+    const minDay = data[0].day;
+    const maxDay = data[data.length - 1].day || 1;
+    let minVal = Infinity;
+    let maxVal = -Infinity;
+    data.forEach(p => {
+      if (p.value < minVal) minVal = p.value;
+      if (p.value > maxVal) maxVal = p.value;
+    });
+    if (maxVal === minVal) {
+      maxVal = minVal * 1.01;
+      minVal = minVal * 0.99;
+    }
+
+    const rangeDay = maxDay - minDay || 1;
+    const rangeVal = maxVal - minVal || 1;
+
+    const points = data.map(p => {
+      const x = ((p.day - minDay) / rangeDay) * 100;
+      const y = 40 - ((p.value - minVal) / rangeVal) * 36 - 2;
+      return { x, y };
+    });
+
+    let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
+    for (let i = 1; i < points.length; i++) {
+      path += ` L ${points[i].x.toFixed(2)} ${points[i].y.toFixed(2)}`;
+    }
+
+    const baselineY = 40 - ((STARTING_CAD - minVal) / rangeVal) * 36 - 2;
+
+    elHistoryChart.innerHTML = `
+      <line x1="0" y1="${baselineY.toFixed(2)}" x2="100" y2="${baselineY.toFixed(
+      2
+    )}" stroke="rgba(148,163,184,0.4)" stroke-width="0.4" stroke-dasharray="2,2" />
+      <path d="${path}" fill="none" stroke="url(#grad)" stroke-width="0.9" />
+      <defs>
+        <linearGradient id="grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#38bdf8"/>
+          <stop offset="100%" stop-color="#6366f1"/>
+        </linearGradient>
+      </defs>
+    `;
+  }
+
+  function updateWaitUI() {
+    if (!currentCountryId) return;
+    const now = Date.now();
+    const inCooldown =
+      waitCooldownUntil &&
+      now < waitCooldownUntil &&
+      currentWaitCountryId === currentCountryId;
+
+    if (inCooldown) {
+      elWaitCounter.textContent =
+        "Cooldown in this country after 3 skips — wait ~10s or switch countries.";
+    } else {
+      elWaitCounter.textContent =
+        `Skips in this country: ${waitCombo} / 3 before cooldown`;
+    }
+    elBtnWait.disabled = inCooldown;
+  }
+
+  function refreshCurrentCountryView() {
+    const current = getCurrentCountry();
+    if (!current) return;
+
+    const rate = rates[current.id];
+    const delta = lastDeltaPct[current.id] || 0;
+    elRateLine.textContent = `1 CAD ≈ ${rate.toFixed(2)} ${current.currencyCode}`;
+    elRateChange.textContent = `Recent move: ${fmtPct(delta)} vs base level`;
+    elRateChange.style.color =
+      delta < -0.001 ? "var(--success)" : delta > 0.001 ? "var(--danger)" : "var(--muted)";
+    elRateMeta.textContent =
+      "Lower number = stronger local currency vs CAD. Higher number = weaker local currency vs CAD.";
+
+    const totalCad = getPortfolioValueCad();
+    const localAmt = holdingsLocal[current.id];
+    const localCad = localAmt / rates[current.id];
+    const otherExposure = totalCad - holdingsCad - localCad;
+    elWalletBreakdown.textContent =
+      `Portfolio snapshot: ${fmtMoney(holdingsCad)} CAD cash, ` +
+      `${localAmt.toFixed(2)} ${current.currencyCode} (≈ ${fmtMoney(localCad)} CAD) here, ` +
+      `${fmtMoney(otherExposure)} CAD in other currencies. Total ≈ ${fmtMoney(totalCad)} CAD.`;
+  }
+
+  /* Marker placement based on actual image size */
+  const markerElements = {};
+
+  function positionMarkers() {
+    const mapRect = elWorldMap.getBoundingClientRect();
+    const containerRect = elMapContainer.getBoundingClientRect();
+    const width = mapRect.width;
+    const height = mapRect.height;
+    const offsetX = mapRect.left - containerRect.left;
+    const offsetY = mapRect.top - containerRect.top;
+
+    countries.forEach(c => {
+      const geo = capitalGeo[c.id];
+      if (!geo) return;
+      const x = ((geo.lon + 180) / 360) * width + offsetX;
+      const y = ((90 - geo.lat) / 180) * height + offsetY;
+      const el = markerElements[c.id];
+      if (el) {
+        el.style.left = x + "px";
+        el.style.top = y + "px";
+      }
+    });
+  }
+
+  function renderMarkers() {
+    elMapContainer.querySelectorAll(".country-marker").forEach(el => el.remove());
+
+    countries.forEach(c => {
+      const div = document.createElement("div");
+      div.className = "country-marker";
+      div.dataset.id = c.id;
+
+      div.addEventListener("mouseenter", e => {
+        elMapTooltip.style.display = "block";
+        elMapTooltipTitle.textContent = `${c.name} — ${c.currencyCode}`;
+        elMapTooltipBody.textContent = c.hoverSummary;
+        positionTooltip(e);
+      });
+
+      div.addEventListener("mousemove", e => {
+        positionTooltip(e);
+      });
+
+      div.addEventListener("mouseleave", () => {
+        elMapTooltip.style.display = "none";
+      });
+
+      div.addEventListener("click", () => {
+        openCountryPanel(c.id);
+      });
+
+      elMapContainer.appendChild(div);
+      markerElements[c.id] = div;
+    });
+
+    positionMarkers();
+    highlightMarkers();
+  }
+
+  function positionTooltip(e) {
+    const rect = elMapContainer.getBoundingClientRect();
+    let x = e.clientX - rect.left + 10;
+    let y = e.clientY - rect.top + 10;
+
+    const tooltipRect = elMapTooltip.getBoundingClientRect();
+    const maxX = rect.width - tooltipRect.width - 8;
+    const maxY = rect.height - tooltipRect.height - 8;
+    x = Math.min(Math.max(8, x), maxX);
+    y = Math.min(Math.max(8, y), maxY);
+
+    elMapTooltip.style.left = x + "px";
+    elMapTooltip.style.top = y + "px";
+  }
+
+  function highlightMarkers() {
+    const markers = elMapContainer.querySelectorAll(".country-marker");
+    markers.forEach(m => {
+      const id = m.dataset.id;
+      m.classList.toggle("active", id === currentCountryId);
+      if (visitedIds.has(id)) m.classList.add("visited");
+      else m.classList.remove("visited");
+    });
+  }
+
+  function openCountryPanel(countryId) {
+    const firstVisit = !visitedIds.has(countryId);
+    currentCountryId = countryId;
+    const c = getCountryById(countryId);
+    visitedIds.add(countryId);
+    highlightMarkers();
+
+    if (currentWaitCountryId !== countryId) {
+      currentWaitCountryId = countryId;
+      waitCombo = 0;
+      waitCooldownUntil = null;
+      if (waitCooldownTimerId) {
+        clearTimeout(waitCooldownTimerId);
+        waitCooldownTimerId = null;
+      }
+    }
+    updateWaitUI();
+
+    if (firstVisit) {
+      advanceTime(3, c.id);
+      logEvent(`You travel to ${c.name} to study the ${c.currencyName}.`, "neutral", "TRAVEL");
+    }
+
+    elCountryFlag.src = `https://flagcdn.com/w80/${c.iso2}.png`;
+    elCountryFlag.alt = `${c.name} flag`;
+    elCountryTitle.textContent = `${c.name} — ${c.currencyName} (${c.currencyCode})`;
+    elCountrySubtitle.textContent = `${c.region} • Global currency role`;
+
+    elCountryOverview.querySelector("p").textContent = c.hoverSummary;
+    elCountryGlobalRole.textContent = c.globalRole;
+
+    elCountryDrivers.innerHTML = "";
+    const list = document.createElement("ul");
+    c.drivers.forEach(d => {
+      const li = document.createElement("li");
+      li.textContent = d;
+      list.appendChild(li);
+    });
+    elCountryDrivers.appendChild(list);
+
+    const chosenScenario = c.scenarios[Math.floor(Math.random() * c.scenarios.length)];
+    elCountryScenarioTitle.textContent = chosenScenario.title;
+    elCountryScenarioBody.textContent = chosenScenario.issue;
+    elCountryScenarioExtra.textContent =
+      `Likely effect on ${c.currencyCode}: ${chosenScenario.effect}\nWho is most affected: ${chosenScenario.who}`;
+    elCountryScenarioTip.textContent = chosenScenario.tip;
+
+    if (firstVisit) {
+      triggerNews(c.id, chosenScenario);
+    }
+
+    elLearningQuestions.innerHTML = "";
+    c.questions.forEach(q => {
+      const li = document.createElement("li");
+      li.textContent = q;
+      elLearningQuestions.appendChild(li);
+    });
+
+    const suggested = Math.max(0, Math.round(Math.min(holdingsCad, getPortfolioValueCad() * 0.25)));
+    elInvestAmount.value = suggested;
+
+    renderHistoryChart();
+    refreshCurrentCountryView();
+    elCountryOverlay.classList.add("active");
+  }
+
+  function closeCountryPanel() {
+    elCountryOverlay.classList.remove("active");
+    currentCountryId = null;
+    highlightMarkers();
+  }
+
+  function normalizeStepDays() {
+    let stepDays = parseInt(elTimeStepInput.value, 10);
+    if (isNaN(stepDays) || stepDays < 1) stepDays = 30;
+    if (stepDays > 365) stepDays = 365;
+    elTimeStepInput.value = stepDays;
+    return stepDays;
+  }
+
+  function handleWait() {
+    const current = getCurrentCountry();
+    if (!current) return;
+
+    const now = Date.now();
+    const inCooldown =
+      waitCooldownUntil &&
+      now < waitCooldownUntil &&
+      currentWaitCountryId === currentCountryId;
+
+    if (inCooldown) {
+      logEvent(
+        `Cooldown active in ${current.name}: you used 3 quick skips here. Wait a few seconds or visit another country.`,
+        "neutral",
+        "COOLDOWN"
+      );
+      return;
+    }
+
+    const stepDays = normalizeStepDays();
+    advanceTime(stepDays, current.id);
+
+    if (currentWaitCountryId !== currentCountryId) {
+      currentWaitCountryId = currentCountryId;
+      waitCombo = 0;
+      waitCooldownUntil = null;
+      if (waitCooldownTimerId) {
+        clearTimeout(waitCooldownTimerId);
+        waitCooldownTimerId = null;
+      }
+    }
+
+    waitCombo++;
+    if (waitCombo >= 3) {
+      waitCooldownUntil = Date.now() + 10000;
+      waitCombo = 0;
+      updateWaitUI();
+      logEvent(
+        `You’ve used 3 quick skips in ${current.name}. Real markets aren’t free money — cooldown here for ~10 seconds or explore another country.`,
+        "neutral",
+        "COOLDOWN"
+      );
+      waitCooldownTimerId = setTimeout(() => {
+        if (currentWaitCountryId === currentCountryId) {
+          waitCooldownUntil = null;
+          updateWaitUI();
+        }
+      }, 10500);
+    } else {
+      updateWaitUI();
+    }
+  }
+
+  function handleExchange() {
+    const current = getCurrentCountry();
+    if (!current) return;
+
+    let amount = parseFloat(elInvestAmount.value);
+    if (isNaN(amount) || amount <= 0) amount = holdingsCad;
+    amount = Math.min(amount, holdingsCad);
+
+    if (amount <= 0) {
+      logEvent(
+        `You have no CAD cash left to invest. Wait for rates to move or end the trip.`,
+        "neutral",
+        "INFO"
+      );
+      return;
+    }
+
+    const rate = rates[current.id];
+    const localToAdd = amount * rate;
+
+    holdingsCad -= amount;
+    holdingsLocal[current.id] += localToAdd;
+
+    advanceTime(5, current.id);
+
+    logEvent(
+      `You invest ${fmtMoney(amount)} CAD into ${current.currencyName}, receiving about ${localToAdd.toFixed(
+        2
+      )} ${current.currencyCode}.`,
+      "neutral",
+      "TRADE"
+    );
+
+    const suggested = Math.max(0, Math.round(Math.min(holdingsCad, getPortfolioValueCad() * 0.25)));
+    elInvestAmount.value = suggested;
+  }
+
+  function handleMapAdvanceTime() {
+    const stepDays = normalizeStepDays();
+    advanceTime(stepDays, null);
+
+    logEvent(
+      `You let ${stepDays} days pass globally. All currencies adjust as trade, inflation, and interest rates evolve.`,
+      "neutral",
+      "TIME"
+    );
+  }
+
+  function computeTripScore() {
+    const finalCad = getPortfolioValueCad();
+    const diff = finalCad - STARTING_CAD;
+    const visitedScore = visitedIds.size / countries.length;
+    const wealthScore = Math.max(0, Math.min(1, finalCad / (STARTING_CAD * 1.5)));
+    const overallScore = (visitedScore * 0.5 + wealthScore * 0.5) * 100;
+
+    let gradeLabel;
+    if (overallScore >= 90)
+      gradeLabel = "A+ — Excellent exploration and risk management.";
+    else if (overallScore >= 80)
+      gradeLabel = "A — Strong balance between learning and returns.";
+    else if (overallScore >= 70)
+      gradeLabel = "B — Decent performance; compare more countries and timing.";
+    else
+      gradeLabel = "C or below — Explore more currencies and think about inflation, trade, and stability.";
+
+    return { finalCad, diff, gradeLabel };
+  }
+
+  function handleEndTrip() {
+    const { finalCad, diff, gradeLabel } = computeTripScore();
+
+    elResultsWealth.textContent = fmtMoney(finalCad) + " CAD";
+    const diffText = (diff >= 0 ? "+" : "") + fmtMoney(diff);
+    elResultsPnL.textContent = `${diffText} vs starting $${STARTING_CAD.toFixed(2)} CAD`;
+    elResultsGrade.textContent = "Overall performance: " + gradeLabel;
+
+    const visitedCount = visitedIds.size;
+    elResultsLearning.textContent =
+      `${visitedCount} / ${countries.length} currencies explored • ${daysTraveled} days simulated`;
+
+    elResultsList.innerHTML = "";
+    const bullets = [
+      "Some currencies have more global influence because they are stable, low-inflation, and used widely in trade or held as reserves (e.g., USD, EUR).",
+      "Emerging-market currencies can move a lot when inflation, interest rates, or political risk change suddenly.",
+      "Commodity exporters (Russia, South Africa, Indonesia, Iran) gain or lose when oil and metal prices shift, affecting their currencies.",
+      "Trade agreements (USMCA for Mexico) and sanctions (Russia, Iran) change how easily a currency is used in world trade.",
+      "The rise of non-Western currencies (like yuan or rupee) can shift trade patterns away from USD, which would affect countries like Russia, Iran, and South Africa most."
+    ];
+    bullets.forEach(b => {
+      const li = document.createElement("li");
+      li.textContent = b;
+      elResultsList.appendChild(li);
+    });
+
+    elResultsBackdrop.style.display = "flex";
+  }
+
+  function closeResultsModal() {
+    elResultsBackdrop.style.display = "none";
+  }
+
+  function init() {
+    if (elWorldMap.complete) {
+      renderMarkers();
+    } else {
+      elWorldMap.addEventListener("load", renderMarkers);
+    }
+
+    updateHUD();
+    logEvent(
+      "You start in Canada with $2,000 CAD in cash. Click a highlighted capital to explore its currency, invest some CAD, and then use Wait / Advance time to see how global events move exchange rates.",
+      "neutral",
+      "START"
+    );
+
+    elBtnWait.addEventListener("click", handleWait);
+    elBtnExchange.addEventListener("click", handleExchange);
+    elBtnCloseCountry.addEventListener("click", closeCountryPanel);
+
+    elBtnAdvanceTimeMap.addEventListener("click", handleMapAdvanceTime);
+    elBtnEndTripHud.addEventListener("click", handleEndTrip);
+    elBtnCloseResults.addEventListener("click", closeResultsModal);
+    elResultsBackdrop.addEventListener("click", e => {
+      if (e.target === elResultsBackdrop) closeResultsModal();
+    });
+
+    elBtnToggleNews.addEventListener("click", () => {
+      elNewsPanel.classList.toggle("open");
+    });
+
+    window.addEventListener("resize", positionMarkers);
+
+    /* continuous random update: every 10 seconds = 1 simulated day on a random country */
+    setInterval(() => {
+      const c = countries[Math.floor(Math.random() * countries.length)];
+      advanceTime(1, c.id);
+    }, 10000);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
